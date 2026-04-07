@@ -1,0 +1,8 @@
+node_modules/
+.env
+dot.env
+.npm
+.pnpm-debug.log*
+.DS_Store
+dist/
+build/
