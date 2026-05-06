@@ -2,106 +2,87 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 
-class AuthService {
-    // Registrar un nuevo usuario
-    async register(userData) {
-        try {
-            const { name, username, email, password } = userData;
+const generateToken = (user) => {
+    return jwt.sign(
+        {
+            userId: user._id,
+            email: user.email
+        },
+        process.env.JWT_SECRET || 'fallback_secret',
+        { expiresIn: '24h' }
+    );
+};
 
-            // Verificar si el usuario ya existe
-            const existingUser = await User.findOne({
-                $or: [{ email }, { username }]
-            });
+const verifyToken = (token) => {
+    try {
+        return jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    } catch (error) {
+        throw new Error('Token inválido');
+    }
+};
 
-            if (existingUser) {
-                throw new Error('El usuario o email ya está registrado');
-            }
+const register = async (userData) => {
+    const { name, username, email, password } = userData;
 
-            // Encriptar contraseña antes de crear el usuario
-            const salt = await bcrypt.genSalt(10);
-            const hashedPassword = await bcrypt.hash(password, salt);
+    const existingUser = await User.findOne({
+        $or: [{ email }, { username }]
+    });
 
-            // Crear nuevo usuario con contraseña encriptada
-            const user = new User({
-                name,
-                username,
-                email,
-                password: hashedPassword
-            });
-
-            console.log('Intentando guardar usuario...');
-            await user.save();
-            console.log('Usuario guardado exitosamente');
-
-            // Generar token
-            const token = this.generateToken(user);
-
-            return {
-                user: {
-                    id: user._id,
-                    name: user.name,
-                    username: user.username,
-                    email: user.email
-                },
-                token
-            };
-        } catch (error) {
-            throw error;
-        }
+    if (existingUser) {
+        throw new Error('El usuario o email ya está registrado');
     }
 
-    // Iniciar sesión
-    async login(email, password) {
-        try {
-            // Buscar usuario por email
-            const user = await User.findOne({ email });
-            if (!user) {
-                throw new Error('Credenciales inválidas');
-            }
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-            // Verificar contraseña
-            const isPasswordValid = await user.comparePassword(password);
-            if (!isPasswordValid) {
-                throw new Error('Credenciales inválidas');
-            }
+    const user = new User({
+        name,
+        username,
+        email,
+        password: hashedPassword
+    });
+    await user.save();
 
-            // Generar token
-            const token = this.generateToken(user);
+    const token = generateToken(user);
 
-            return {
-                user: {
-                    id: user._id,
-                    name: user.name,
-                    username: user.username,
-                    email: user.email
-                },
-                token
-            };
-        } catch (error) {
-            throw error;
-        }
+    return {
+        user: {
+            id: user._id,
+            name: user.name,
+            username: user.username,
+            email: user.email
+        },
+        token
+    };
+};
+
+const login = async (email, password) => {
+    const user = await User.findOne({ email });
+    if (!user) {
+        throw new Error('Credenciales inválidas');
     }
 
-    // Generar token JWT
-    generateToken(user) {
-        return jwt.sign(
-            { 
-                userId: user._id,
-                email: user.email 
-            },
-            process.env.JWT_SECRET || 'fallback_secret',
-            { expiresIn: '24h' }
-        );
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+        throw new Error('Credenciales inválidas');
     }
 
-    // Verificar token
-    verifyToken(token) {
-        try {
-            return jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
-        } catch (error) {
-            throw new Error('Token inválido');
-        }
-    }
-}
+    const token = generateToken(user);
 
-module.exports = new AuthService();
+    return {
+        user: {
+            id: user._id,
+            name: user.name,
+            username: user.username,
+            email: user.email
+        },
+        token
+    };
+};
+
+module.exports = {
+    register,
+    login,
+    generateToken,
+    verifyToken
+};
