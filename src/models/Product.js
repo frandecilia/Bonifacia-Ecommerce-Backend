@@ -7,9 +7,9 @@ const productSchema = new mongoose.Schema({
     },
     // Clasificación según el catálogo: "Home Spray", "Difusor de Auto", "Difusor de Ambiente", "Perfume"
     category: { 
-        type: String, 
-        required: true,
-        enum: ['Home Spray', 'Difusor de Auto', 'Difusor de Ambiente', 'Perfume Personal'] 
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Category',
+        required: true
     },
     // Subcategoría para los perfumes (Hombre/Mujer) o tipos de difusores
     subCategory: { 
